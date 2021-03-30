@@ -1,53 +1,43 @@
 #include <ESP8266WiFi.h>
-#include <ESP8266HTTPClient.h>
-const char *ssid = "KARIN.";
-const char *password = "89428942";
-const char *serverName = "http://192.168.0.105:3333/api/dashboard/arduinoSensor";
-int sensorValue = 0;
-unsigned long lastTime = 0;
-unsigned long timerDelay = 5000;
+#include <FirebaseESP8266.h>
+#define FIREBASE_HOST "https://gasdetect-fe60e-default-rtdb.firebaseio.com"
+#define FIREBASE_AUTH "XKKqf7QjLzIDa5rzSwjNbpG5wjufnxbbtFtoM5dS"
+#define WIFI_SSID "KARIN."
+#define WIFI_PASSWORD "89428942"
+
+FirebaseData firebaseData;
+int n = 0;
+int sensorValue = analogRead(A0);
+String firesensor1 = String(sensorValue);
+
 void setup()
 {
-  Serial.begin(115200);
-  delay(1000);
-  Serial.println();
-  Serial.println();
-  Serial.print("Connecting to ");
-  Serial.println(ssid);
-  WiFi.begin(ssid, password);
+  Serial.begin(9600);
+  // connect to wifi.
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  Serial.print("connecting");
   while (WiFi.status() != WL_CONNECTED)
   {
-    delay(500);
     Serial.print(".");
+    delay(500);
   }
-  Serial.println("");
-  Serial.println("WiFi connected");
-  Serial.println("IP address: ");
+  Serial.println();
+  Serial.print("connected: ");
   Serial.println(WiFi.localIP());
-  Serial.print("Netmask: ");
-  Serial.println(WiFi.subnetMask());
-  Serial.print("Gateway: ");
-  Serial.println(WiFi.gatewayIP());
+  Firebase.begin(FIREBASE_HOST, FIREBASE_AUTH);
+  Firebase.reconnectWiFi(true);
+  int n = 0;
 }
 void loop()
 {
-  sensorValue = analogRead(A0);
-  if (WiFi.status() == WL_CONNECTED)
+  Serial.println(sensorValue);
+  Firebase.pushString(firebaseData, "Sensor1/datos/", firesensor1);
+
+  n++;
+
+  if (n == 10)
   {
-    HTTPClient http;
-    http.begin(serverName);
-    http.addHeader("Content-Type", "application/json");
-    String httpData = "{\"sensor\":\"" + String(sensorValue) + "\"}";
-    int httpCode = http.POST(httpData);
-    String payload = http.getString();
-    Serial.print("Http code: ");
-    Serial.println(httpCode);
-    Serial.println(payload);
-    http.end();
+    Firebase.deleteNode(firebaseData, "Sensor1/datos/");
+    n = 0;
   }
-  else
-  {
-    Serial.println("Error in WiFi connection");
-  }
-  delay(10000);
 }
