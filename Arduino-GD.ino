@@ -4,12 +4,10 @@
 #define FIREBASE_AUTH "XKKqf7QjLzIDa5rzSwjNbpG5wjufnxbbtFtoM5dS"
 #define WIFI_SSID "KARIN."
 #define WIFI_PASSWORD "89428942"
-
 FirebaseData firebaseData;
 int n = 0;
 int sensorValue = analogRead(A0);
 String firesensor1 = String(sensorValue);
-
 void setup()
 {
   Serial.begin(9600);
@@ -31,13 +29,5 @@ void setup()
 void loop()
 {
   Serial.println(sensorValue);
-  Firebase.pushString(firebaseData, "Sensor1/datos/", firesensor1);
-
-  n++;
-
-  if (n == 10)
-  {
-    Firebase.deleteNode(firebaseData, "Sensor1/datos/");
-    n = 0;
-  }
+  Firebase.setString(firebaseData, "Sensor1/data", firesensor1);
 }
