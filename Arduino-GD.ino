@@ -1,15 +1,21 @@
-/********************************************************************************************************** 
-  Author : Andy @ MYBOTIC www.mybotic.com.my ==>  Modified by Jhimmy Astoraque https://www.youtube.com/c/jadsatv
-  Date:5/7/2016 -- 24/04/2019
-  Project: How to detect the concentration of gas by using MQ2 sensor
-**********************************************************************************************************/
 #include <SoftwareSerial.h>
 #include <ArduinoJson.h>
+#include <Adafruit_GFX.h>    // include Adafruit graphics library
+#include <Adafruit_ST7735.h> // include Adafruit ST7735 TFT library
 
+#define TFT_RST 9 // TFT RST pin is connected to arduino pin 8
+#define TFT_CS 10 // TFT CS  pin is connected to arduino pin 9
+#define TFT_DC 8  // TFT DC  pin is connected to arduino pin 10
+// initialize ST7735 TFT library
+Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
+//declare the pins for serial comunication with nodeMCU
 SoftwareSerial nodemcu(5, 6);
 /************************Hardware Related Macros************************************/
-const int calibrationLed = 13;    //when the calibration start , LED pin 13 will light up , off when finish calibrating
-const int MQ_PIN = A0;            //define which analog input channel you are going to use
+const int MQ_PIN = A0; //define which analog input channel you are going to use
+const int buzzer = 7;
+const int ledVerde = 4;
+const int ledAmarillo = 3;
+const int ledRojo = 2;
 int RL_VALUE = 1;                 //define the load resistance on the board, in kilo ohms
 float RO_CLEAN_AIR_FACTOR = 9.86; //RO_CLEAR_AIR_FACTOR=(Sensor resistance in clean air)/RO,
                                   //which is derived from the chart in datasheet
@@ -44,22 +50,42 @@ float Ro = 10;                            //Ro is initialized to 10 kilo ohms
 
 void setup()
 {
-
   Serial.begin(9600);
   nodemcu.begin(9600);
-  pinMode(calibrationLed, OUTPUT);
-  digitalWrite(calibrationLed, HIGH);
+
+  pinMode(ledVerde, OUTPUT);    //definir pin como salida
+  pinMode(ledAmarillo, OUTPUT); //definir pin como salida
+  pinMode(ledRojo, OUTPUT);     //definir pin como salida
+
   Serial.print("Calibrating...");
-
   Ro = MQCalibration(MQ_PIN); //Calibrating the sensor. Please make sure the sensor is in clean air
-  digitalWrite(calibrationLed, LOW);
-
   Serial.println("done!");
   Serial.print("Ro= ");
   Serial.print(Ro);
   Serial.println("kohm\n");
+
+  tft.initR(INITR_BLACKTAB);                    // initialize a ST7735S chip, black tab
+  tft.fillScreen(ST7735_BLACK);                 // fill screen with black color
+  tft.setTextColor(ST7735_WHITE, ST7735_BLACK); // set text color to white and black background
+  tft.setTextSize(2);                           // text size = 1
+  tft.setCursor(5, 5);                          // move cursor to position (4, 16) pixel
+  tft.print("GAS DETECT ");
+  tft.drawFastHLine(0, 25, tft.width(), ST7735_BLUE); // draw horizontal blue line at position (0, 50)
+  tft.setTextColor(ST7735_GREEN, ST7735_BLACK);       // set text color to green and black background
+  tft.setCursor(5, 30);                               // move cursor to position (25, 61) pixel
+  tft.print("GLP");
+  tft.drawFastHLine(0, 70, tft.width(), ST7735_BLUE); // draw horizontal blue line at position (0, 102)
+  tft.setTextColor(ST7735_GREEN, ST7735_BLACK);       // set text color to yellow and black background
+  tft.setCursor(5, 75);                               // move cursor to position (34, 113) pixel
+  tft.print("CO");
+  tft.drawFastHLine(0, 115, tft.width(), ST7735_BLUE); // draw horizontal blue line at position (0, 102)
+  tft.setTextColor(ST7735_GREEN, ST7735_BLACK);        // set text color to yellow and black background
+  tft.setCursor(5, 120);                               // move cursor to position (34, 113) pixel
+  tft.print("HUMO");
+
   delay(2000);
 }
+char _buffer[3];
 
 void loop()
 {
@@ -71,6 +97,40 @@ void loop()
   iPPM_CO = MQGetGasPercentage(MQRead(MQ_PIN) / Ro, GAS_CO);
   iPPM_Smoke = MQGetGasPercentage(MQRead(MQ_PIN) / Ro, GAS_SMOKE);
 
+  if (iPPM_LPG <= 500)
+  {
+    digitalWrite(ledVerde, HIGH);
+    digitalWrite(ledAmarillo, LOW);
+    digitalWrite(ledRojo, LOW);
+  }
+  if (iPPM_LPG > 500 && iPPM_LPG <= 1000)
+  {
+    digitalWrite(ledVerde, LOW);
+    digitalWrite(ledAmarillo, HIGH);
+  }
+  if (iPPM_LPG > 1000)
+  {
+    digitalWrite(ledVerde, LOW);
+    digitalWrite(ledAmarillo, LOW);
+    digitalWrite(ledRojo, HIGH);
+    //generar tono de 523Hz durante 500ms, y detenerlo durante 500ms.
+    tone(buzzer, 523, 300);
+    delay(500);
+  }
+
+  sprintf(_buffer, "%05u PPM%", iPPM_LPG);
+  tft.setTextColor(ST7735_CYAN, ST7735_BLACK); // set text color to cyan and black background
+  tft.setCursor(10, 50);
+  tft.print(_buffer);
+  sprintf(_buffer, "%05u PPM%", iPPM_CO);
+  tft.setTextColor(ST7735_CYAN, ST7735_BLACK); // set text color to cyan and black background
+  tft.setCursor(10, 95);
+  tft.print(_buffer);
+  sprintf(_buffer, "%05u PPM%", iPPM_Smoke);
+  tft.setTextColor(ST7735_CYAN, ST7735_BLACK); // set text color to cyan and black background
+  tft.setCursor(10, 140);
+  tft.print(_buffer);
+
   StaticJsonBuffer<1000> jsonBuffer;
   JsonObject &data = jsonBuffer.createObject();
 
@@ -80,22 +140,6 @@ void loop()
 
   data.printTo(nodemcu);
   jsonBuffer.clear();
-
-  Serial.println("**************************** CONCETRATION OF GASES ****************************");
-
-  Serial.print("LPG: ");
-  Serial.print(iPPM_LPG);
-  Serial.println(" ppm");
-
-  Serial.print("CO: ");
-  Serial.print(iPPM_CO);
-  Serial.println(" ppm");
-
-  Serial.print("Smoke: ");
-  Serial.print(iPPM_Smoke);
-  Serial.println(" ppm");
-  Serial.println("*******************************************************************************\n");
-  Serial.println();
 
   delay(500);
 }
