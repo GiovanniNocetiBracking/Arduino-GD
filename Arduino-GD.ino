@@ -17,7 +17,7 @@ const int ledVerde = 4;
 const int ledAmarillo = 3;
 const int ledRojo = 2;
 int RL_VALUE = 1;                 //define the load resistance on the board, in kilo ohms
-float RO_CLEAN_AIR_FACTOR = 9.86; //RO_CLEAR_AIR_FACTOR=(Sensor resistance in clean air)/RO,
+float RO_CLEAN_AIR_FACTOR = 9.53; //RO_CLEAR_AIR_FACTOR=(Sensor resistance in clean air)/RO,
                                   //which is derived from the chart in datasheet
 
 /***********************Software Related Macros************************************/
@@ -42,7 +42,7 @@ float COCurve[3] = {2.3, 0.72, -0.34};    //two points are taken from the curve.
                                           //with these two points, a line is formed which is "approximately equivalent"
                                           //to the original curve.
                                           //data format:{ x, y, slope}; point1: (lg200, 0.72), point2: (lg10000,  0.15)
-float SmokeCurve[3] = {2.3, 0.53, -0.44}; //two points are taken from the curve.
+float SmokeCurve[3] = {3.5, 0.99, -0.43}; //two points are taken from the curve.
                                           //with these two points, a line is formed which is "approximately equivalent"
                                           //to the original curve.
                                           //data format:{ x, y, slope}; point1: (lg200, 0.53), point2: (lg10000,  -0.22)
